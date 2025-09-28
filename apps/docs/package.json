@@ -1,0 +1,12 @@
+{
+  "name": "@app/docs",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "npx nextra dev",
+    "build": "npx nextra build",
+    "lint": "eslint ."
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
