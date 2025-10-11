@@ -13,8 +13,7 @@ const ENV_TEMPLATE_PATH = resolve(ROOT_DIR, '.env.example');
 interface Options {
   forceEnv: boolean;
   skipInstall: boolean;
-  skipDocker: boolean;
-  skipDb: boolean;
+  skipData: boolean;
 }
 
 function parseOptions(): Options {
@@ -22,144 +21,81 @@ function parseOptions(): Options {
   return {
     forceEnv: args.has('--force-env'),
     skipInstall: args.has('--skip-install'),
-    skipDocker: args.has('--skip-docker'),
-    skipDb: args.has('--skip-db'),
+    skipData: args.has('--skip-data'),
   };
 }
 
-function runCommand(command: string, args: string[], options: { cwd?: string } = {}) {
-  return new Promise<void>((resolve, reject) => {
+function runCommand(command: string, args: string[]) {
+  return new Promise<void>((resolvePromise, reject) => {
     const child = spawn(command, args, {
-      cwd: options.cwd ?? ROOT_DIR,
+      cwd: ROOT_DIR,
       stdio: 'inherit',
       env: process.env,
     });
 
     child.on('close', (code) => {
       if (code === 0) {
-        resolve();
+        resolvePromise();
       } else {
         reject(new Error(`${command} ${args.join(' ')} exited with code ${code}`));
       }
     });
 
-    child.on('error', (error) => {
-      reject(error);
-    });
+    child.on('error', reject);
   });
 }
 
 async function commandExists(command: string) {
-  return new Promise<boolean>((resolve) => {
-    const check = spawn('sh', ['-c', `command -v ${command}`], {
-      stdio: 'ignore',
-    });
-
-    check.on('close', (code) => {
-      resolve(code === 0);
-    });
-
-    check.on('error', () => resolve(false));
+  return new Promise<boolean>((resolvePromise) => {
+    const check = spawn('sh', ['-c', `command -v ${command}`], { stdio: 'ignore' });
+    check.on('close', (code) => resolvePromise(code === 0));
+    check.on('error', () => resolvePromise(false));
   });
 }
 
-async function ensureEnvFile(force: boolean) {
-  const envExists = existsSync(ENV_PATH);
-  if (envExists && !force) {
-    console.log('✔︎ .env file already present.');
+async function ensureEnv(force: boolean) {
+  if (existsSync(ENV_PATH) && !force) {
+    console.log('✔︎ .env already present');
     return;
   }
-
   if (!existsSync(ENV_TEMPLATE_PATH)) {
-    throw new Error('Missing .env.example template file.');
+    throw new Error('Missing .env.example');
   }
-
   copyFileSync(ENV_TEMPLATE_PATH, ENV_PATH);
-  console.log(force ? '⚠︎ .env file replaced from template.' : '✔︎ .env file created from template.');
-}
-
-async function ensureDockerComposeBinary() {
-  try {
-    await runCommand('docker', ['compose', 'version']);
-    return { command: 'docker', args: ['compose'] as const };
-  } catch {
-    try {
-      await runCommand('docker-compose', ['version']);
-      return { command: 'docker-compose', args: [] as const };
-    } catch {
-      throw new Error('Docker Compose is required. Install Docker Desktop or docker-compose.');
-    }
-  }
-}
-
-async function waitForDatabase() {
-  const hasPgIsReady = await commandExists('pg_isready');
-  if (!hasPgIsReady) {
-    console.log('ℹ️  pg_isready not available, skipping readiness check.');
-    return;
-  }
-
-  const start = Date.now();
-  const timeoutMs = 60_000;
-  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-  while (Date.now() - start < timeoutMs) {
-    try {
-      await runCommand('pg_isready', ['-h', 'localhost', '-p', '5432']);
-      console.log('✔︎ Postgres is ready.');
-      return;
-    } catch {
-      await delay(1500);
-    }
-  }
-
-  console.warn('⚠︎ Timed out waiting for Postgres to accept connections. Continuing anyway.');
+  console.log(force ? '⚠︎ .env replaced from template' : '✔︎ .env created from template');
 }
 
 async function main() {
   const options = parseOptions();
+  console.log('➡️  Bootstrapping workspace...');
+  await ensureEnv(options.forceEnv);
 
-  console.log('➡️  Bootstrapping development environment...');
-  await ensureEnvFile(options.forceEnv);
-
-  const hasPnpm = await commandExists('pnpm');
-  if (!hasPnpm) {
+  if (!(await commandExists('pnpm'))) {
     throw new Error('pnpm is required. Install it via `npm install -g pnpm`.');
   }
 
   if (!options.skipInstall) {
-    console.log('➡️  Installing workspace dependencies with pnpm...');
+    console.log('➡️  Installing dependencies...');
     await runCommand('pnpm', ['install']);
   } else {
-    console.log('⏭️  Skipping pnpm install (per flag).');
+    console.log('⏭️  Skipping install');
   }
 
-  if (!options.skipDocker && existsSync(resolve(ROOT_DIR, 'docker-compose.yml'))) {
-    const compose = await ensureDockerComposeBinary();
-    console.log('➡️  Starting docker services (Postgres, Redis)...');
-    await runCommand(compose.command, [...compose.args, 'up', '-d']);
-    await waitForDatabase();
-  } else if (options.skipDocker) {
-    console.log('⏭️  Skipping docker startup (per flag).');
-  } else {
-    console.log('ℹ️  docker-compose.yml not found. Skipping docker startup.');
-  }
-
-  if (!options.skipDb) {
-    console.log('➡️  Running database migrations...');
+  if (!options.skipData) {
+    console.log('➡️  Preparing demo data...');
     await runCommand('pnpm', ['db:migrate']);
-    console.log('➡️  Seeding database with demo data...');
     await runCommand('pnpm', ['db:seed']);
+    await runCommand('pnpm', ['kb:ingest']);
   } else {
-    console.log('⏭️  Skipping database setup (per flag).');
+    console.log('⏭️  Skipping data setup');
   }
 
-  console.log('✅ Development environment ready!');
-  console.log('   • Run `pnpm dev` to start all apps.');
-  console.log('   • Run `pnpm --filter apps/web dev` to develop the web app only.');
+  console.log('✅ Ready! Run `pnpm dev` to launch the apps.');
 }
 
 main().catch((error) => {
-  console.error('\n❌ Bootstrap failed:', error.message);
+  console.error('❌ Bootstrap failed');
+  console.error(error);
   process.exit(1);
 });
+

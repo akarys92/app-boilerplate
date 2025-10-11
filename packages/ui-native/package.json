@@ -2,13 +2,11 @@
   "name": "@app/ui-native",
   "version": "0.1.0",
   "private": true,
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "scripts": {
-    "build": "tsup src/index.ts --dts",
-    "lint": "eslint src --ext .ts,.tsx",
-    "test": "vitest"
-  },
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
   "dependencies": {},
-  "devDependencies": {}
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-native": "*"
+  }
 }

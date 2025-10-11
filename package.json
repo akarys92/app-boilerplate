@@ -5,17 +5,17 @@
   "packageManager": "pnpm@8.15.4",
   "scripts": {
     "bootstrap": "tsx scripts/bootstrap.ts",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=@app/web",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "db:reset": "pnpm db:migrate -- --reset && pnpm db:seed"
+    "db:reset": "pnpm db:migrate && pnpm db:seed && pnpm kb:ingest",
+    "kb:ingest": "tsx scripts/ingest.ts"
   },
   "devDependencies": {
     "dotenv": "^16.4.5",
-    "pg": "^8.11.3",
     "turbo": "^2.0.4",
     "tsx": "^4.7.1",
     "zod": "^3.23.8"

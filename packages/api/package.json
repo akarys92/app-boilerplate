@@ -4,11 +4,15 @@
   "private": true,
   "main": "src/index.ts",
   "types": "src/index.ts",
-  "scripts": {
-    "build": "tsup src/index.ts --dts",
-    "lint": "eslint src --ext .ts,.tsx",
-    "test": "vitest"
-  },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "@app/analytics": "workspace:*",
+    "@app/chat": "workspace:*",
+    "@app/config": "workspace:*",
+    "@app/db": "workspace:*",
+    "@app/email": "workspace:*",
+    "@app/llm": "workspace:*",
+    "@app/payments": "workspace:*",
+    "@app/utils": "workspace:*",
+    "@app/voice": "workspace:*"
+  }
 }

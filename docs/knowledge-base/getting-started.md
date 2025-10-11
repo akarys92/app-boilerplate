@@ -1,8 +1,8 @@
 # Getting Started
 
-This document powers the vector store ingestion demo. It summarizes the major steps to spin up the boilerplate:
+This document powers the knowledge-base ingestion demo. It summarises the major steps to explore the boilerplate:
 
-1. Run `pnpm bootstrap` to provision dependencies, containers, and the database.
-2. Launch the apps with `pnpm dev`.
-3. Update `.env` with provider keys to unlock LLM, voice, auth, and payments integrations.
-4. Sync docs into the vector store via `pnpm tsx scripts/ingest.ts --path docs/knowledge-base`.
+1. Run `pnpm bootstrap` to install dependencies, create the JSON datastore, seed demo data, and index docs.
+2. Launch the dashboard with `pnpm dev --filter @app/web`.
+3. Toggle features by editing `FEATURE_FLAGS` in `.env`.
+4. Update markdown in `docs/knowledge-base/` and re-run `pnpm kb:ingest` to refresh search results.
